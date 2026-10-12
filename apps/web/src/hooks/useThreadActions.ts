@@ -305,6 +305,9 @@ export function useThreadActions() {
   const unsnoozeThreadMutation = useOrchestrationCommand(threadEnvironment.unsnooze, {
     reportFailure: false,
   });
+  const updateThreadMetadataMutation = useOrchestrationCommand(threadEnvironment.updateMetadata, {
+    reportFailure: false,
+  });
   const markThreadUnread = useMarkThreadUnread();
   const stopThreadSession = useOrchestrationCommand(threadEnvironment.stopSession);
   const removeWorktree = useAtomCommand(vcsEnvironment.removeWorktree, {
@@ -863,6 +866,16 @@ export function useThreadActions() {
     [confirmThreadUnpin, resolveThreadTarget, unpinThread],
   );
 
+  /** Skipped (successfully) while the thread's title is already regenerating. */
+  const regenerateThreadTitle = useCallback(
+    (target: ScopedThreadRef) =>
+      updateThreadMetadataMutation({
+        environmentId: target.environmentId,
+        input: { threadId: target.threadId, regenerateTitle: true },
+      }),
+    [updateThreadMetadataMutation],
+  );
+
   const reorderPinnedThread = useCallback(
     async (target: ScopedThreadRef, orderKey: string) => {
       // Callers (the sidebar drag handler) only enable dragging on
@@ -1024,6 +1037,7 @@ export function useThreadActions() {
       reorderActiveThread,
       markThreadUnread,
       setThreadAutoSettle,
+      regenerateThreadTitle,
     }),
     [
       archiveThread,
@@ -1032,6 +1046,7 @@ export function useThreadActions() {
       deleteThread,
       markThreadUnread,
       pinThread,
+      regenerateThreadTitle,
       reorderPinnedThread,
       reorderActiveThread,
       setThreadAutoSettle,

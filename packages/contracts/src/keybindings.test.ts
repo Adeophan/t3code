@@ -151,6 +151,13 @@ it.effect("parses keybinding rules", () =>
       command: "thread.stop",
     });
     assert.strictEqual(parsedThreadStop.command, "thread.stop");
+
+    const parsedThreadRegenerateTitle = yield* decode(KeybindingRule, {
+      key: "mod+alt+t",
+      command: "thread.regenerateTitle",
+      when: "!terminalFocus",
+    });
+    assert.strictEqual(parsedThreadRegenerateTitle.command, "thread.regenerateTitle");
   }),
 );
 

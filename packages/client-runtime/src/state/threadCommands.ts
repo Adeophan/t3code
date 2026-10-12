@@ -2,7 +2,7 @@ import type { ThreadId } from "@t3tools/contracts";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
-import { Atom } from "effect/reactivity";
+import { AsyncResult, Atom } from "effect/reactivity";
 import {
   WS_METHODS,
   type EnvironmentId,
@@ -405,9 +405,51 @@ export function createThreadEnvironmentAtoms<R, E>(
     }),
   };
   const optimistic = createOptimisticThreadLifecycle(snapshotAtom);
+  // Threads whose regenerate request is still awaiting its reply. With the
+  // shell's titleRegeneration marker this skips repeat requests; the server
+  // would accept each and queue another generation. A request made after the
+  // reply but before the batched shell update arrives can still go out, and
+  // only costs one superseded generation.
+  const titleRegenerationsInFlight = new Set<string>();
+  const updateMetadata: typeof commands.updateMetadata = {
+    label: commands.updateMetadata.label,
+    run: async (registry, target) => {
+      if (target.input.regenerateTitle !== true) {
+        return commands.updateMetadata.run(registry, target);
+      }
+      const key = JSON.stringify([target.environmentId, target.input.threadId]);
+      const thread = registry
+        .get(optimistic.snapshotAtom(target.environmentId))
+        ?.threads.find((candidate) => candidate.id === target.input.threadId);
+      if (titleRegenerationsInFlight.has(key) || thread?.titleRegeneration != null) {
+        // Skip only the regeneration; other changes in the same request still apply.
+        const { regenerateTitle: _skipped, ...input } = target.input;
+        const hasOtherChanges = (
+          [
+            "title",
+            "branch",
+            "worktreePath",
+            "modelSelection",
+            "linkedPullRequest",
+            "limitRecovery",
+          ] as const
+        ).some((field) => input[field] !== undefined);
+        return hasOtherChanges
+          ? commands.updateMetadata.run(registry, { ...target, input })
+          : AsyncResult.success({ sequence: 0 });
+      }
+      titleRegenerationsInFlight.add(key);
+      try {
+        return await commands.updateMetadata.run(registry, target);
+      } finally {
+        titleRegenerationsInFlight.delete(key);
+      }
+    },
+  };
   return {
     ...commands,
     snapshotAtom: optimistic.snapshotAtom,
+    updateMetadata,
     settle: optimistic.wrap(commands.settle, (thread, _input, now, accepted) =>
       !accepted &&
       (thread.pendingRuntimeRequest !== null ||

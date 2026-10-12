@@ -375,3 +375,90 @@ describe("remote thread lifecycle commands", () => {
       }),
   );
 });
+
+describe("title regeneration", () => {
+  const regenerate = (h: Effect.Success<ReturnType<typeof makeHarness>>) =>
+    h.commands.updateMetadata.run(h.registry, {
+      environmentId: ENVIRONMENT_ID,
+      input: { threadId: THREAD_ID, regenerateTitle: true },
+    });
+
+  it.effect("sends one request while one awaits its reply and releases it on success", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness();
+      const first = regenerate(h);
+      const request = yield* Queue.take(h.requests);
+      expect(request.command).toMatchObject({
+        type: "thread.metadata.update",
+        regenerateTitle: true,
+      });
+      expect((yield* Effect.promise(() => regenerate(h)))._tag).toBe("Success");
+      expect(yield* Queue.size(h.requests)).toBe(0);
+
+      yield* Deferred.succeed(request.reply, { sequence: 2 });
+      expect((yield* Effect.promise(() => first))._tag).toBe("Success");
+      // No shell update has arrived, and the guard must not be left behind.
+      const next = regenerate(h);
+      const nextRequest = yield* Queue.take(h.requests);
+      yield* Deferred.succeed(nextRequest.reply, { sequence: 3 });
+      expect((yield* Effect.promise(() => next))._tag).toBe("Success");
+    }),
+  );
+
+  it.effect("allows a retry after a failed request", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness();
+      const first = regenerate(h);
+      const request = yield* Queue.take(h.requests);
+      yield* Deferred.fail(request.reply, new Error("Connection lost"));
+      expect((yield* Effect.promise(() => first))._tag).toBe("Failure");
+
+      const retry = regenerate(h);
+      const retried = yield* Queue.take(h.requests);
+      yield* Deferred.succeed(retried.reply, { sequence: 2 });
+      expect((yield* Effect.promise(() => retry))._tag).toBe("Success");
+    }),
+  );
+
+  it.effect("skips the request while the shell shows a regeneration", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness();
+      h.registry.set(h.snapshotAtom(ENVIRONMENT_ID), {
+        ...SNAPSHOT,
+        threads: [
+          {
+            ...SNAPSHOT.threads[0]!,
+            titleRegeneration: { requestId: CommandId.make("running"), startedAt: NOW },
+          },
+        ],
+      });
+      expect((yield* Effect.promise(() => regenerate(h)))._tag).toBe("Success");
+      expect(yield* Queue.size(h.requests)).toBe(0);
+    }),
+  );
+
+  it.effect("still applies other changes sent with a skipped regeneration", () =>
+    Effect.gen(function* () {
+      const h = yield* makeHarness();
+      h.registry.set(h.snapshotAtom(ENVIRONMENT_ID), {
+        ...SNAPSHOT,
+        threads: [
+          {
+            ...SNAPSHOT.threads[0]!,
+            titleRegeneration: { requestId: CommandId.make("running"), startedAt: NOW },
+          },
+        ],
+      });
+      const result = h.commands.updateMetadata.run(h.registry, {
+        environmentId: ENVIRONMENT_ID,
+        input: { threadId: THREAD_ID, regenerateTitle: true, title: "x" },
+      });
+      const request = yield* Queue.take(h.requests);
+      expect(request.command).toMatchObject({ type: "thread.metadata.update", title: "x" });
+      expect(request.command).not.toHaveProperty("regenerateTitle");
+      yield* Deferred.succeed(request.reply, { sequence: 2 });
+      expect((yield* Effect.promise(() => result))._tag).toBe("Success");
+      expect(yield* Queue.size(h.requests)).toBe(0);
+    }),
+  );
+});

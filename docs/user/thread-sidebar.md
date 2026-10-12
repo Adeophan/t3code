@@ -104,8 +104,10 @@ environment. Pinned and active reordering require server support. Threads from o
 their default order until the server is updated.
 
 To generate a fresh title from the conversation, open a thread's menu and choose
-**Regenerate title**. The action is unavailable while title generation is in progress
-or when the connected environment needs a server update.
+**Regenerate title**. The same action is in the command palette, and you can bind
+**Thread: Regenerate Title** in **Settings → Keybindings**. The action is unavailable
+while title generation is in progress or when the connected environment needs a server
+update.
 
 Agents connected through T3 Code can use the same server-owned metadata workflow to
 rename a thread, regenerate its title, or link and unlink a pull request. These changes

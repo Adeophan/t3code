@@ -72,6 +72,7 @@ import {
   MonitorIcon,
   MoonIcon,
   PaletteIcon,
+  RefreshCwIcon,
   RotateCcwIcon,
   SettingsIcon,
   SquarePenIcon,
@@ -127,6 +128,7 @@ import { sourceControlEnvironment } from "../state/sourceControl";
 import { useAtomCommand } from "../state/use-atom-command";
 import { useAtomQueryRunner } from "../state/use-atom-query-runner";
 import { useScratchProject } from "../hooks/useScratchProject";
+import { useThreadActions } from "../hooks/useThreadActions";
 import { useNewProject } from "../hooks/useNewProject";
 import { isScratchProject } from "@t3tools/client-runtime/state/projects";
 import { useEnvironments, usePrimaryEnvironmentId } from "../state/environments";
@@ -637,6 +639,7 @@ function OpenCommandPaletteDialog(props: {
   const stopThreadSession = useAtomCommand(threadEnvironment.stopSession, {
     reportFailure: false,
   });
+  const { regenerateThreadTitle } = useThreadActions();
   const refreshProviders = useAtomCommand(serverEnvironment.refreshProviders, {
     reportFailure: false,
   });
@@ -664,6 +667,10 @@ function OpenCommandPaletteDialog(props: {
   const openPanelPullRequestUrl = useOpenPanelPullRequestUrl(referenceThreadRef);
   const activeThreadServerConfig = useServerConfigs().get(
     activeThread?.environmentId ?? ("" as EnvironmentId),
+  );
+  const canOperateActiveThread = useEnvironmentScope(
+    activeThread?.environmentId ?? null,
+    AuthOrchestrationOperateScope,
   );
   const activeThreadReferenceCopyTarget =
     referenceThreadRef === null || (pathname === "/pull-requests" && !openPanelPullRequestUrl)
@@ -1962,6 +1969,31 @@ function OpenCommandPaletteDialog(props: {
         },
       });
     }
+  }
+
+  if (
+    activeThread !== null &&
+    canOperateActiveThread &&
+    activeThreadServerConfig?.environment.capabilities.threadTitleRegeneration === true
+  ) {
+    const threadRef = scopeThreadRef(activeThread.environmentId, activeThread.id);
+    const isRegeneratingTitle = activeThread.titleRegeneration != null;
+    actionItems.push({
+      kind: "action",
+      value: "action:regenerate-thread-title",
+      searchTerms: ["regenerate", "title", "rename", "thread name", "refresh"],
+      title: isRegeneratingTitle ? "Regenerating thread title…" : "Regenerate thread title",
+      icon: <RefreshCwIcon className={ITEM_ICON_CLASS} />,
+      disabled: isRegeneratingTitle,
+      shortcutCommand: "thread.regenerateTitle",
+      // Failures throw into executeItem's error toast.
+      run: async () => {
+        const result = await regenerateThreadTitle(threadRef);
+        if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+          throw squashAtomCommandFailure(result);
+        }
+      },
+    });
   }
 
   if (activeThread !== null) {

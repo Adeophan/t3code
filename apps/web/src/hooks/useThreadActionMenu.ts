@@ -22,8 +22,6 @@ import {
   type ThreadActionMenuId,
 } from "../components/threadActionMenu.logic";
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
-import { threadEnvironment } from "../state/threads";
-import { useOrchestrationCommand } from "../state/use-orchestration-command";
 import { readEnvironmentScope } from "../state/session";
 import {
   readEnvironmentSupportsAutoSettleOptOut,
@@ -99,10 +97,8 @@ export function useThreadActionMenu(input: {
     archiveThread,
     deleteThread,
     markThreadUnread,
+    regenerateThreadTitle,
   } = useThreadActions();
-  const updateThreadMetadata = useOrchestrationCommand(threadEnvironment.updateMetadata, {
-    reportFailure: false,
-  });
   const handleNewThread = useNewThreadHandler();
   const confirmThreadDelete = useClientSettings((s) => s.confirmThreadDelete);
   const confirmThreadArchive = useClientSettings((s) => s.confirmThreadArchive);
@@ -254,12 +250,8 @@ export function useThreadActionMenu(input: {
             onStartRename();
             return;
           case "regenerate-title":
-            if (isRegeneratingTitle) return;
             await reportFailure("Failed to regenerate thread title", () =>
-              updateThreadMetadata({
-                environmentId: threadRef.environmentId,
-                input: { threadId: threadRef.threadId, regenerateTitle: true },
-              }),
+              regenerateThreadTitle(threadRef),
             );
             return;
           case "mark-unread":
@@ -365,7 +357,7 @@ export function useThreadActionMenu(input: {
       timestampFormat,
       unsettleThread,
       unsnoozeThread,
-      updateThreadMetadata,
+      regenerateThreadTitle,
     ],
   );
 

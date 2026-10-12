@@ -1590,7 +1590,8 @@ export default function ChatView(props: ChatViewProps) {
   const canReadTerminal = useEnvironmentScope(environmentId, AuthTerminalReadScope);
   const draftId = routeKind === "draft" ? props.draftId : null;
   const handleNewThread = useNewThreadHandler();
-  const { settleThread, pinThread, confirmAndUnpinThread } = useThreadActions();
+  const { settleThread, pinThread, confirmAndUnpinThread, regenerateThreadTitle } =
+    useThreadActions();
   const routeThreadRef = useMemo(
     () => scopeThreadRef(environmentId, threadId),
     [environmentId, threadId],
@@ -7147,6 +7148,8 @@ export default function ChatView(props: ChatViewProps) {
   const supportsSnooze = serverConfig?.environment.capabilities.threadSnooze === true;
   const supportsPinning = serverConfig?.environment.capabilities.threadPinning === true;
   const activeThreadPinned = supportsPinning && activeThreadShell?.pinnedAt != null;
+  const supportsTitleRegeneration =
+    serverConfig?.environment.capabilities.threadTitleRegeneration === true;
   const activeThreadSnoozed =
     activeThreadShell !== null &&
     supportsSnooze &&
@@ -8111,6 +8114,33 @@ export default function ChatView(props: ChatViewProps) {
         return;
       }
 
+      if (command === "thread.regenerateTitle") {
+        // Unavailable: leave the key to anything else that wants it. Once available
+        // the key is always consumed; the command skips a regeneration already running.
+        if (
+          !isServerThread ||
+          !activeThreadRef ||
+          !supportsTitleRegeneration ||
+          !readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)
+        )
+          return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.repeat) return;
+        void regenerateThreadTitle(activeThreadRef).then((result) => {
+          if (result._tag !== "Failure" || isAtomCommandInterrupted(result)) return;
+          const error = squashAtomCommandFailure(result);
+          toastManager.add(
+            stackedThreadToast({
+              type: "error",
+              title: "Failed to regenerate thread title",
+              description: error instanceof Error ? error.message : "An error occurred.",
+            }),
+          );
+        });
+        return;
+      }
+
       if (command === "terminal.toggle") {
         if (!terminalUiState.terminalOpen && !canReadTerminal && !canOperateTerminal) return;
         event.preventDefault();
@@ -8371,6 +8401,8 @@ export default function ChatView(props: ChatViewProps) {
     settleThread,
     supportsPinning,
     supportsSettlement,
+    supportsTitleRegeneration,
+    regenerateThreadTitle,
     confirmAndUnpinThread,
     copyActiveThreadReference,
     getShortcutContext,

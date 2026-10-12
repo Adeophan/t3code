@@ -2448,6 +2448,7 @@ export default function Sidebar() {
     markThreadUnread,
     archiveThread,
     deleteThread,
+    regenerateThreadTitle,
   } = useThreadActions();
   const updateThreadMetadata = useOrchestrationCommand(threadEnvironment.updateMetadata, {
     reportFailure: false,
@@ -4806,11 +4807,7 @@ export default function Sidebar() {
             startThreadRename(threadRef, thread.title);
             return;
           case "regenerate-title": {
-            if (isRegeneratingTitle) return;
-            const result = await updateThreadMetadata({
-              environmentId: threadRef.environmentId,
-              input: { threadId: threadRef.threadId, regenerateTitle: true },
-            });
+            const result = await regenerateThreadTitle(threadRef);
             if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
               const error = squashAtomCommandFailure(result);
               toastManager.add(
@@ -4929,8 +4926,8 @@ export default function Sidebar() {
       serverConfigs,
       setProjectScopeKey,
       setThreadAutoSettle,
+      regenerateThreadTitle,
       startThreadRename,
-      updateThreadMetadata,
       timestampFormat,
     ],
   );

@@ -285,6 +285,7 @@ describe("KeybindingsSettings.logic", () => {
     expect(commandLabel("themeEditor.toggle")).toBe("Theme Editor: Toggle");
     expect(commandLabel("view.reopenClosed")).toBe("Reopen Closed Tab");
     expect(commandLabel("preview.focusUrl")).toBe("Preview: Focus URL");
+    expect(commandLabel("thread.regenerateTitle")).toBe("Thread: Regenerate Title");
     expect(commandLabel("script.setup-db.run")).toBe("Run Script: Setup Db");
   });
 
@@ -327,11 +328,12 @@ describe("KeybindingsSettings.logic", () => {
         "rightPanel.toggleMaximized",
         "composer.cycleHost",
         "thread.stop",
+        "thread.regenerateTitle",
         "usage.open",
         "script.setup-db.run",
       ]),
     );
-    for (const command of ["thread.stop", "composer.cycleHost"]) {
+    for (const command of ["thread.stop", "composer.cycleHost", "thread.regenerateTitle"]) {
       expect(DEFAULT_RESOLVED_KEYBINDINGS.some((binding) => binding.command === command)).toBe(
         false,
       );

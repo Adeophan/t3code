@@ -141,6 +141,10 @@ a shortcut.
 `thread.stop` interrupts the running turn in the focused thread. It has no default
 shortcut; assign one in **Settings → Keybindings**.
 
+`thread.regenerateTitle` generates a fresh title for the focused thread. It has no
+default shortcut. It does nothing while a title is already being generated or when
+the thread's environment does not support title regeneration.
+
 `thread.undo` (`mod+z` by default) reverses the actions shown in the notice at the
 bottom of the sidebar, such as unpin, settle, snooze, archive, or discarding a
 draft. Consecutive

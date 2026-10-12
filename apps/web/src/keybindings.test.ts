@@ -1064,6 +1064,31 @@ describe("resolveShortcutCommand", () => {
     );
   });
 
+  it("resolves a custom regenerate-title shortcut outside the terminal only", () => {
+    const keybindings = compile([
+      {
+        shortcut: modShortcut("t", { shiftKey: true }),
+        command: "thread.regenerateTitle",
+        whenAst: whenNot(whenIdentifier("terminalFocus")),
+      },
+    ]);
+    const input = event({ key: "t", metaKey: true, shiftKey: true });
+
+    assert.strictEqual(
+      resolveShortcutCommand(input, keybindings, {
+        platform: "MacIntel",
+        context: { terminalFocus: false },
+      }),
+      "thread.regenerateTitle",
+    );
+    assert.isNull(
+      resolveShortcutCommand(input, keybindings, {
+        platform: "MacIntel",
+        context: { terminalFocus: true },
+      }),
+    );
+  });
+
   it("returns dynamic script commands", () => {
     const keybindings = compile([{ shortcut: modShortcut("r"), command: "script.setup.run" }]);
 

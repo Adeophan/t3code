@@ -65,13 +65,6 @@ vi.mock("../state/entities", () => ({
   useProjects: () => [{ id: "project", environmentId: "secondary" }],
 }));
 vi.mock("../state/environments", () => ({ usePrimaryEnvironmentId: () => "primary" }));
-vi.mock("../state/threads", () => ({ threadEnvironment: { updateMetadata: "metadata" } }));
-vi.mock("../state/use-atom-command", () => ({
-  useAtomCommand: () => async () => {
-    recordEffect("metadata");
-    return AsyncResult.success(undefined);
-  },
-}));
 vi.mock("../localApi", () => ({
   readLocalApi: () => ({
     contextMenu: { show: state.show, close: () => {} },
@@ -134,6 +127,7 @@ vi.mock("./useThreadActions", () => ({
         "confirmAndUnpinThread",
         "archiveThread",
         "deleteThread",
+        "regenerateThreadTitle",
       ].map((action) => [
         action,
         async () => {
