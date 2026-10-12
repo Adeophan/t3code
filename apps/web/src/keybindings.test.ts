@@ -1064,6 +1064,30 @@ describe("resolveShortcutCommand", () => {
     );
   });
 
+  it("resolves a custom rename-thread shortcut only where its condition allows", () => {
+    const keybindings = compileResolvedKeybindingsConfig([
+      { key: "f2", command: "thread.rename", when: "!terminalFocus && !editableFocus" },
+    ]);
+    const input = event({ key: "F2" });
+
+    assert.strictEqual(
+      resolveShortcutCommand(input, keybindings, { platform: "MacIntel" }),
+      "thread.rename",
+    );
+    assert.isNull(
+      resolveShortcutCommand(input, keybindings, {
+        platform: "MacIntel",
+        context: { editableFocus: true },
+      }),
+    );
+    assert.isNull(
+      resolveShortcutCommand(input, keybindings, {
+        platform: "MacIntel",
+        context: { terminalFocus: true },
+      }),
+    );
+  });
+
   it("returns dynamic script commands", () => {
     const keybindings = compile([{ shortcut: modShortcut("r"), command: "script.setup.run" }]);
 

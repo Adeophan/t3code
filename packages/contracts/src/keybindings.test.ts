@@ -151,6 +151,13 @@ it.effect("parses keybinding rules", () =>
       command: "thread.stop",
     });
     assert.strictEqual(parsedThreadStop.command, "thread.stop");
+
+    const parsedThreadRename = yield* decode(KeybindingRule, {
+      key: "f2",
+      command: "thread.rename",
+      when: "!terminalFocus && !editableFocus",
+    });
+    assert.strictEqual(parsedThreadRename.command, "thread.rename");
   }),
 );
 

@@ -72,6 +72,7 @@ import {
   MonitorIcon,
   MoonIcon,
   PaletteIcon,
+  PencilIcon,
   RotateCcwIcon,
   SettingsIcon,
   SquarePenIcon,
@@ -79,6 +80,13 @@ import {
   TextSearchIcon,
 } from "lucide-react";
 import { requestThreadFindOpen } from "./chat/threadFindActionBus";
+import {
+  cancelDeferredThreadRename,
+  deferThreadRename,
+  dropStaleDeferredThreadRename,
+  flushDeferredThreadRename,
+} from "./chat/threadRenameActionBus";
+import { useCanStartThreadRename } from "./chat/useCanStartThreadRename";
 import {
   useCallback,
   useDeferredValue,
@@ -405,6 +413,13 @@ export function CommandPalette({ children }: { children: ReactNode }) {
       : false,
   );
 
+  // Reopening before the close finished drops a rename the palette never got to send.
+  useEffect(() => {
+    if (state.open) cancelDeferredThreadRename();
+  }, [state.open]);
+  // So does navigating away, even if the user comes back before the close finishes.
+  useEffect(() => dropStaleDeferredThreadRename(routeThreadRef), [routeThreadRef]);
+
   useEffect(() => {
     if (!state.open || state.mode === "command") return;
     const onEscapeKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -569,6 +584,7 @@ function CommandPaletteDialog(props: {
       data-testid="command-palette"
       finalFocus={() => {
         composerHandleRef?.current?.focusAtEnd();
+        flushDeferredThreadRename();
         return false;
       }}
       onBackdropPointerDown={() => {
@@ -1055,6 +1071,10 @@ function OpenCommandPaletteDialog(props: {
   const supportsThreadFind =
     environments.find((environment) => environment.environmentId === activeThread?.environmentId)
       ?.serverConfig?.threadFind === true;
+  const activeThreadRef = activeThread
+    ? scopeThreadRef(activeThread.environmentId, activeThread.id)
+    : null;
+  const canRenameActiveThread = useCanStartThreadRename(activeThreadRef, activeThreadRef !== null);
   const currentProjectEnvironmentId =
     activeThread?.environmentId ?? activeDraftThread?.environmentId ?? null;
   const currentProjectId = activeThread?.projectId ?? activeDraftThread?.projectId ?? null;
@@ -1918,6 +1938,20 @@ function OpenCommandPaletteDialog(props: {
         });
       }
     }
+  }
+
+  if (activeThreadRef !== null && canRenameActiveThread) {
+    actionItems.push({
+      kind: "action",
+      value: "action:rename-thread",
+      searchTerms: ["rename", "title", "thread name"],
+      title: "Rename thread",
+      icon: <PencilIcon className={ITEM_ICON_CLASS} />,
+      shortcutCommand: "thread.rename",
+      run: async () => {
+        deferThreadRename(activeThreadRef);
+      },
+    });
   }
 
   if (activeThreadReferenceCopyTarget !== null) {
@@ -3155,6 +3189,20 @@ function OpenCommandPaletteDialog(props: {
       event.stopPropagation();
       setOpen(false);
       requestThreadFindOpen();
+      return;
+    }
+    if (
+      command === "thread.rename" &&
+      activeThreadRef !== null &&
+      canRenameActiveThread &&
+      !event.repeat &&
+      !event.nativeEvent.isComposing &&
+      event.keyCode !== 229
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+      deferThreadRename(activeThreadRef);
       return;
     }
 

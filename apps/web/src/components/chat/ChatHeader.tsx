@@ -30,6 +30,8 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { useOrchestrationCommand } from "../../state/use-orchestration-command";
 import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
 import { ProjectFavicon } from "../ProjectFavicon";
+import { subscribeThreadRename } from "./threadRenameActionBus";
+import { useCanStartThreadRename } from "./useCanStartThreadRename";
 import {
   WorkspaceBreadcrumb,
   WorkspaceBreadcrumbItem,
@@ -176,6 +178,11 @@ export const ChatHeader = memo(function ChatHeader({
       title: activeThreadTitle,
     });
   }, [activeThreadEnvironmentId, activeThreadId, activeThreadTitle, isServerThread]);
+  const canStartRenameFromCommand = useCanStartThreadRename(activeThreadRef, isServerThread);
+  useEffect(() => {
+    if (!canStartRenameFromCommand) return;
+    return subscribeThreadRename(activeThreadRef, startRename);
+  }, [activeThreadRef, canStartRenameFromCommand, startRename]);
   const commitRename = useCallback(
     (title: string) => {
       setRenaming(null);

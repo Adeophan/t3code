@@ -1,5 +1,7 @@
 import { ThreadFind, ThreadFindCanvas, type ThreadFindControls } from "./chat/ThreadFindProvider";
 import { THREAD_FIND_BAR_RESERVED_HEIGHT } from "./chat/ThreadFindBar";
+import { requestThreadRename } from "./chat/threadRenameActionBus";
+import { useCanStartThreadRename } from "./chat/useCanStartThreadRename";
 import { usageLimitRecoveryBannerItem } from "./chat/UsageLimitRecoveryBanner";
 import {
   resolveBackgroundDraftWorkspaceOptions,
@@ -2388,6 +2390,7 @@ export default function ChatView(props: ChatViewProps) {
   );
   const canMaximizeRightPanel = rightPanelOpen && !shouldUsePlanSidebarSheet;
   const rightPanelMaximized = canMaximizeRightPanel && rightPanelState.maximized === true;
+  const canRenameThread = useCanStartThreadRename(activeThreadRef, isServerThread);
   const inlineRightPanelOwnsTitleBar = rightPanelOpen && !shouldUsePlanSidebarSheet;
   const [threadPanelPresentation, setThreadPanelPresentation] =
     useState<ThreadPanelPresentation>("inline");
@@ -8111,6 +8114,15 @@ export default function ChatView(props: ChatViewProps) {
         return;
       }
 
+      if (command === "thread.rename") {
+        if (!canRenameThread || !activeThreadRef || event.isComposing || event.keyCode === 229)
+          return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (!event.repeat) requestThreadRename(activeThreadRef);
+        return;
+      }
+
       if (command === "terminal.toggle") {
         if (!terminalUiState.terminalOpen && !canReadTerminal && !canOperateTerminal) return;
         event.preventDefault();
@@ -8377,6 +8389,7 @@ export default function ChatView(props: ChatViewProps) {
     openThreadFind,
     closeThreadFind,
     isThreadFindActive,
+    canRenameThread,
     toggleRightPanel,
     toggleRightPanelMaximized,
     toggleThreadPanel,
